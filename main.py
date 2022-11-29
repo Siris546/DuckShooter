@@ -17,7 +17,34 @@ targets={
     2:[12,7,5],
     3:[15,10,8,3]
 }
-level = 3
+level = 1
+points = 0
+shot = False 
+
+menu = True
+game_over = False
+pause = False
+
+clicked = False
+write_values = False
+
+# 0 = freeplay, 1 = accuracy, 2 = times
+
+mode = 0
+ammo = 0
+total_shots = 0
+time_passed = 0
+time_remaining = 0
+counter = 1
+
+best_freeplay = 0
+best_ammo = 0
+best_timed = 0
+
+menu_img = pygame.image.load(f"assets/menus/mainMenu.png")
+game_over_img = pygame.image.load(f"assets/menus/gameOVer.png")
+pause_img = pygame. image.load(f"assets/menus/pause.png")
+
 for i in range(1,4):
     bgs.append(pygame.image.load(f'./assets/bgs/{i}.png'))
     banners.append(pygame.image.load(f'./assets/banners/{i}.png'))
@@ -31,14 +58,25 @@ for i in range(1,4):
 
 def draw_level(coords):
     if level == 1 or level == 2:
-        target_rect = [[],[],[]]
+        target_rects = [[],[],[]]
     else:
-        target_rect = [[],[],[],[]]
+        target_rects = [[],[],[],[]]
     for i in range(len(coords)):
         for j in range(len(coords[i])):
-            target_rect[i].append(pygame.rect.Rect((coords[i][j][0] + 20 ,coords[i][j][1]),(60 - i*12, 60 - i*12)))
+            target_rects[i].append(pygame.rect.Rect((coords[i][j][0] + 20 ,coords[i][j][1]),(60 - i*12, 60 - i*12)))
             screen.blit(target_images[level-1][i], coords[i][j])
-    return target_images
+    return target_rects
+
+def check_shot(targets, coords):
+    global points
+    mouse_pos = pygame.mouse.get_pos()
+    for i in range(len(targets)):
+        for j in range(len(targets[i])):
+            if targets[i][j].collidepoint(mouse_pos):
+                coords[i].pop(j)
+                points += 10 + 10 * (i ** 2)
+    return coords
+
 
 #now initialize enemy coordinates
 one_coords = [[],[],[]]
@@ -95,31 +133,142 @@ def move_level(coords):
                 coords[i][j] = (my_coords[0] - 2**i, my_coords[1])
     return coords
             
+def draw_score():
+    points_text = font.render(f'Points : {points}', True, "black")
+    screen.blit(points_text, (320, 660))
+    shots_text = font.render(f'Total shots : {total_shots}', True, "black")
+    screen.blit(shots_text, (320, 687))
+    time_text = font.render(f'Time elapsed : {time_passed}', True, "black")
+    screen.blit(time_text, (320, 714))
+    if mode == 0:
+        mode_text = font.render(f'Freeplay!!!!', True, "black")
+    screen.blit(mode_text, (320, 741))
+    if mode == 1:
+        mode_text = font.render(f'Ammo remaining: {ammo}', True, "black")
+    screen.blit(mode_text, (320, 741))
+    if mode == 2:
+        mode_text = font.render(f'Time remaining : {time_remaining}', True, "black")
+    screen.blit(mode_text, (320, 741))
+
+def draw_menu():
+    global game_over, pause
+    global mode, level, menu, time_passed, total_shots, points, ammo, time_remaining #by the way if you dont feel like the idea of keeping these variables global, then you can just pass them as function parameters to avoid not to use global variables. Thank you
+    global best_timed, best_ammo, best_freeplay, write_values
+    game_over = False
+    pause = False
+    screen.blit(menu_img,(0,0))
+    mouse_pos = pygame.mouse.get_pos()
+    clicks = pygame.mouse.get_pressed()
+    freeplay_button = pygame.rect.Rect((170,524),(260,100)) #we used pygame.draw.rect initially to draw the rectangle on the menu screen but since we dont want visible outline we just use pygame.rect.Rect().
+    screen.blit(font.render(f"{best_freeplay}", True, 'black'),(340,580))
+    ammo_btn = pygame.rect.Rect((475,524),(260,100))
+    screen.blit(font.render(f"{best_ammo}", True, 'black'),(650,580))
+    time_btn = pygame.rect.Rect((170,661),(260,100))
+    screen.blit(font.render(f"{best_timed}", True, 'black'),(350,710))
+    reset_btn = pygame.rect.Rect((475,661),(260,100))
+    if freeplay_button.collidepoint(mouse_pos) and clicks[0] and not clicked:
+        mode = 0
+        level = 1
+        menu = False
+        time_passed = 0
+        ammo = 81 
+        total_shots = 0
+        points = 0
+    
+    if ammo_btn.collidepoint(mouse_pos) and clicks[0] and not clicked:
+        mode = 1
+        level = 1
+        menu = False
+        time_passed = 0
+        total_shots = 0
+        points = 0
+    
+    if time_btn.collidepoint(mouse_pos) and clicks[0] and not clicked:
+        mode = 2
+        level = 1
+        menu = False
+        time_remaining = 30
+        time_passed = 0
+        total_shots = 0
+        points = 0
+
+    if reset_btn.collidepoint(mouse_pos) and clicks[0] and not clicked:
+        best_freeplay = 0
+        best_ammo = 0
+        best_timed = 0
+        write_values = True
+
+def draw_game_over():
+    pass
+
+def draw_pause():
+    pass
 
 run = True
 while run:
     timer.tick(fps)
+    if level != 0:
+        if counter < 60 :
+            counter +=1
+        else:
+            counter = 1
+            time_passed +=1
+            if mode == 2:
+                time_remaining-=1
 
     screen.fill("black")
     screen.blit(bgs[level -1],(0,0))
     screen.blit(banners[level -1],(0,HEIGHT-200))
     
+    if menu:
+        level = 0
+        draw_menu()
+    if game_over:
+        level = 0
+        draw_game_over()
+    if pause:
+        level = 0
+        draw_pause()
+
+
     if level == 1:
         target_boxes = draw_level(one_coords)
         one_coords = move_level(one_coords)
+        if shot:
+            one_coords = check_shot(target_boxes, one_coords)
+            shot = False
     if level == 2:
-        target_boxes = draw_level(one_coords)
+        target_boxes = draw_level(two_coords)
         two_coords = move_level(two_coords)
+        if shot:
+            two_coords = check_shot(target_boxes, two_coords)
+            shot = False
     if level == 3:
         target_boxes  = draw_level(three_coords)
         three_coords = move_level(three_coords)
+        if shot:
+            three_coords = check_shot(target_boxes, three_coords)
+            shot = False
 
     if level > 0 :
-        draw_gun();
-        # draw_level()
+        draw_gun()
+        draw_score()
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_position = pygame.mouse.get_pos()
+            if(0<mouse_position[0] < WIDTH) and (0 < mouse_position[1] < HEIGHT-200):
+                shot = True
+                total_shots += 1
+                if mode == 1:
+                    ammo -= 1
+    if level > 0:
+        if target_boxes == [[],[],[]] and level < 3:
+            level += 1
+            print(level)
+
+
     pygame.display.flip() #take everything we mention about in above code and display it onto the screen.
 pygame.quit()
